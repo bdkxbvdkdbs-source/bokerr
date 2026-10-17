@@ -7,12 +7,14 @@ export default function ShamCashSheet({
   mode,
   balance,
   onClose,
+  onSkip,
   onSubmit,
 }: {
   open: boolean;
   mode: 'deposit' | 'withdraw';
   balance: number;
   onClose: () => void;
+  onSkip: () => void;
   onSubmit: (amount: number, phone: string) => void;
 }) {
   const [amount, setAmount] = useState('');
@@ -124,6 +126,12 @@ export default function ShamCashSheet({
               }`}
             >
               {isDeposit ? 'تأكيد الإيداع' : 'تأكيد طلب السحب'}
+            </button>
+            <button
+              onClick={onSkip}
+              className="mt-3 w-full rounded-xl border border-ink-700 py-2.5 text-sm font-semibold text-gray-400 transition-colors hover:border-gold-700/50 hover:text-gold-200"
+            >
+              تخطي الآن — الدفع اختياري
             </button>
           </>
         )}

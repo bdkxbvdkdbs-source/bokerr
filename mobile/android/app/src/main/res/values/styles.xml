@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.Bokerr" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#D4AF37</item>
+        <item name="android:navigationBarColor">#0C130E</item>
+        <item name="android:statusBarColor">#06140E</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

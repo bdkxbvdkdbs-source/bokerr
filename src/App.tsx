@@ -45,7 +45,7 @@ function App() {
     setTxs((prev) => [tx, ...prev]);
   };
 
-  const handleSheetSubmit = (amount: number, _phone: string) => {
+  const handleSheetSubmit = (amount: number) => {
     if (sheet === 'deposit') {
       setBalance((b) => b + amount);
       addTx('deposit', amount, 'completed');
@@ -89,6 +89,7 @@ function App() {
             txs={txs}
             onDeposit={() => setSheet('deposit')}
             onWithdraw={() => setSheet('withdraw')}
+            onSkip={() => setTab('lobby')}
           />
         )}
         {tab === 'support' && <SupportScreen onOpenWhatsApp={openWhatsApp} />}
@@ -109,6 +110,11 @@ function App() {
         mode={sheet ?? 'deposit'}
         balance={balance}
         onClose={() => setSheet(null)}
+        onSkip={() => {
+          setSheet(null);
+          setTab('lobby');
+          flash('يمكنك إضافة وسيلة دفع لاحقًا');
+        }}
         onSubmit={handleSheetSubmit}
       />
 

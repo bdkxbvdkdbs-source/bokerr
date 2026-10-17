@@ -7,11 +7,13 @@ export default function WalletScreen({
   txs,
   onDeposit,
   onWithdraw,
+  onSkip,
 }: {
   balance: number;
   txs: WalletTx[];
   onDeposit: () => void;
   onWithdraw: () => void;
+  onSkip: () => void;
 }) {
   return (
     <div className="px-4 pt-4 pb-28 space-y-5">
@@ -53,6 +55,17 @@ export default function WalletScreen({
         >
           <ArrowUpFromLine className="w-5 h-5 text-ember-400" />
           سحب
+        </button>
+      </div>
+      <div className="rounded-xl border border-gold-700/25 bg-ink-850/70 px-4 py-3">
+        <p className="text-xs leading-5 text-gray-400">
+          إضافة المحفظة ووسيلة الدفع اختيارية. يمكنك تخطيها والبدء باستكشاف الصالة الآن.
+        </p>
+        <button
+          onClick={onSkip}
+          className="mt-2 text-sm font-bold text-gold-300 underline underline-offset-4 hover:text-gold-200"
+        >
+          تخطي الآن
         </button>
       </div>
 
