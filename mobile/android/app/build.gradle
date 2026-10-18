@@ -23,7 +23,8 @@ android {
     def keystorePassword = providers.environmentVariable('ANDROID_KEYSTORE_PASSWORD').getOrElse('')
     def releaseKeyAlias = providers.environmentVariable('ANDROID_KEY_ALIAS').getOrElse('')
     def releaseKeyPassword = providers.environmentVariable('ANDROID_KEY_PASSWORD').getOrElse('')
-    def releaseSigningConfigured = [keystorePath, keystorePassword, releaseKeyAlias, releaseKeyPassword].every { !it.isBlank() }
+    def keystoreFileAvailable = !keystorePath.isBlank() && file(keystorePath).isFile()
+    def releaseSigningConfigured = keystoreFileAvailable && [keystorePassword, releaseKeyAlias, releaseKeyPassword].every { !it.isBlank() }
     if (releaseSigningConfigured) {
         signingConfigs {
             release {
