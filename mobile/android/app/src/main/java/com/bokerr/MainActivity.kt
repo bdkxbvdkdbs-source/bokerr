@@ -28,5 +28,23 @@ class MainActivity : AppCompatActivity() {
     private fun showSupport() { base(); content.removeAllViews(); addText("الدعم الفني", 20f, Color.WHITE); content.addView(Button(this).apply { text = "فتح واتساب" }) }
     private fun showProfile() { base(); content.removeAllViews(); addText("حسابي\nلاعب_دمشق", 20f, Color.WHITE) }
     private fun addText(value: String, size: Float, color: Int) { content.addView(TextView(this).apply { text = value; textSize = size; setTextColor(color); setPadding(20, 20, 20, 20); setBackgroundColor(card) }) }
-    private fun connect(tableId: String) { val request = Request.Builder().url("wss://api.example.com/ws/$tableId").build(); client.newWebSocket(request, object : WebSocketListener() { override fun onMessage(socket: WebSocket, text: String) { val token = Regex("\\\"turnToken\\\":\\\"([^\\\"]+)\\\"").find(text)?.groupValues?.get(1) ?: return; socket.send("{\"type\":\"join\",\"actionId\":\"${UUID.randomUUID()}\",\"turnToken\":\"$token\"}") } }) }
+    private fun connect(tableId: String) {
+        val base = BuildConfig.API_BASE_URL.trimEnd('/')
+        if (!base.startsWith("https://", ignoreCase = true)) {
+            addText("الاتصال غير مهيأ. يرجى ضبط عنوان API آمن (HTTPS) وقت البناء.", 14f, Color.YELLOW)
+            return
+        }
+        val socketUrl = "wss://${base.removePrefix("https://")}/ws/$tableId"
+        val request = Request.Builder().url(socketUrl).build()
+        client.newWebSocket(request, object : WebSocketListener() {
+            override fun onMessage(socket: WebSocket, text: String) {
+                val token = Regex("\\\"turnToken\\\":\\\"([^\\\"]+)\\\"").find(text)?.groupValues?.get(1) ?: return
+                val escapedToken = org.json.JSONObject.quote(token)
+                socket.send("{\"type\":\"join\",\"actionId\":\"${UUID.randomUUID()}\",\"turnToken\":$escapedToken}")
+            }
+            override fun onFailure(socket: WebSocket, t: Throwable, response: okhttp3.Response?) {
+                runOnUiThread { addText("تعذر الاتصال بالخادم. تحقق من الشبكة والإعدادات.", 14f, Color.YELLOW) }
+            }
+        })
+    }
 }

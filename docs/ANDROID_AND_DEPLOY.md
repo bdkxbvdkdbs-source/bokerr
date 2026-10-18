@@ -36,15 +36,17 @@ npx wscat -c wss://YOUR_WORKER.workers.dev/ws/berlin-9max
 
 الطاولات المتاحة هي `berlin-9max` و`london-5max`. مسار الحالة العام هو `/api/tables`.
 
-## Android
+## Android (Kotlin)
 
-المشروع الأصلي موجود في `mobile/android`. محليًا يحتاج Android SDK وGradle 8.10 أو أعلى:
+المشروع الأصلي موجود في `mobile/android` ومصدر التطبيق بلغة Kotlin. يتطلب البناء Android SDK وGradle 8.10 أو أحدث:
 
 ```bash
 cd mobile/android
 gradle assembleDebug bundleRelease
 ```
 
-GitHub Action `android.yml` يبني APK debug وAAB release ويرفعهما كـ Artifacts. نسخة release الحالية تستخدم debug signing لتسهيل الاختبار. قبل رفع AAB إلى Google Play يجب إضافة keystore حقيقي إلى GitHub Secrets وتغيير `signingConfig` إلى إعداد release.
+يشغّل GitHub Action `android.yml` بناء APK debug وAAB release ويرفعهما كـ Artifacts. دون إعداد توقيع، يكون AAB غير موقّع ولا يصلح للنشر على Google Play؛ لا يستخدم المشروع مفتاح debug لتوقيع إصدار release. لإصدار قابل للنشر، أضف إلى GitHub Actions Secrets القيم `ANDROID_KEYSTORE_BASE64` و`ANDROID_KEYSTORE_PASSWORD` و`ANDROID_KEY_ALIAS` و`ANDROID_KEY_PASSWORD`. يُفك مخزن المفاتيح داخل مساحة runner المؤقتة فقط. لا ترفع keystore أو كلمات مروره إلى Git.
 
-عدّل عنوان WebSocket في `MainActivity.kt` من `wss://api.example.com` إلى عنوان Worker المنشور. كما يجب استبدال عنوان API داخل `ShamCashSmsListener.kt`.
+اضبط متغير المستودع `BOKERR_API_BASE_URL` بعنوان API المنشور بصيغة HTTPS (دون `/` في النهاية). يدخل العنوان وقت البناء في `BuildConfig`، ولا يُضمّن أي رمز إدارة أو مفتاح سري في التطبيق. لا توضع الأسرار في `gradle.properties` أو ملفات `.env` أو شفرة Kotlin.
+
+مستقبل SMS يرسل مرجعًا ومبلغًا مستخرجين من الرسالة كبيانات غير موثوقة فقط؛ SHA-256 على الهاتف ليس إثبات دفع. لا يجوز للخادم إضافة رصيد قبل التحقق من المعاملة عبر واجهة رسمية موثوقة لمزود الدفع، مع منع التكرار. صلاحية SMS حساسة وقد تخضع لقيود Google Play وسياساته، لذلك لا تنشر هذا التكامل قبل مراجعتها والحصول على الموافقات اللازمة.

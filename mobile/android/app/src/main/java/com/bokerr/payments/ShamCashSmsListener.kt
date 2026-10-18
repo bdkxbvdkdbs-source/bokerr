@@ -4,15 +4,17 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
-import android.util.Base64
+import com.bokerr.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.security.MessageDigest
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
- * يستقبل إشعار SMS فقط ويحوّله إلى إثبات للخادم.
- * لا يتم تعديل الرصيد على الهاتف؛ Worker يتحقق من التوقيع والمرجع والتكرار.
+ * يرسل بيانات مرجعية أولية فقط. لا يثبت SMS الدفع؛ يجب على الخادم
+ * التحقق من المعاملة عبر واجهة المزود الرسمية قبل أي تعديل للرصيد.
  */
 class ShamCashSmsListener : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -23,18 +25,30 @@ class ShamCashSmsListener : BroadcastReceiver() {
 
         val reference = Regex("(?:REF|رقم العملية)[:\\s-]*([A-Za-z0-9-]+)", RegexOption.IGNORE_CASE).find(body)?.groupValues?.get(1) ?: return
         val amount = Regex("([0-9][0-9,]*)\\s*(?:ل\\.س|SYP)", RegexOption.IGNORE_CASE).find(body)?.groupValues?.get(1)?.replace(",", "")?.toLongOrNull() ?: return
-        val payload = "${reference}:${amount}"
-        val proof = Base64.encodeToString(MessageDigest.getInstance("SHA-256").digest(payload.toByteArray()), Base64.NO_WRAP)
-
+        val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
-            // استخدم WorkManager في التطبيق الإنتاجي لإعادة المحاولة والقيود على الشبكة.
-            val request = java.net.URL("https://api.example.com/api/payments/sms-proof").openConnection() as java.net.HttpURLConnection
-            request.requestMethod = "POST"
-            request.doOutput = true
-            request.setRequestProperty("Content-Type", "application/json")
-            request.outputStream.use { it.write("{\"reference\":\"$reference\",\"amountSyp\":$amount,\"proof\":\"$proof\"}".toByteArray()) }
-            request.inputStream.close()
-            request.disconnect()
+            try {
+                val base = BuildConfig.API_BASE_URL.trimEnd('/')
+                if (!base.startsWith("https://", ignoreCase = true)) return@launch
+                val connection = (URL("$base/api/payments/sms-proof").openConnection() as HttpURLConnection)
+                try {
+                    connection.connectTimeout = 10_000
+                    connection.readTimeout = 10_000
+                    connection.requestMethod = "POST"
+                    connection.doOutput = true
+                    connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                    val payload = JSONObject().put("reference", reference).put("amountSyp", amount).toString()
+                    connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+                    if (connection.responseCode in 200..299) connection.inputStream.close()
+                    else connection.errorStream?.close()
+                } finally {
+                    connection.disconnect()
+                }
+            } catch (_: Exception) {
+                // الفشل لا يغير الرصيد؛ أعد المحاولة من خلال آلية خادم موثوقة.
+            } finally {
+                pendingResult.finish()
+            }
         }
     }
 }
