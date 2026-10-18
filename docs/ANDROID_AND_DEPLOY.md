@@ -45,8 +45,17 @@ cd mobile/android
 gradle assembleDebug bundleRelease
 ```
 
-يشغّل GitHub Action `android.yml` بناء APK debug وAAB release ويرفعهما كـ Artifacts. دون إعداد توقيع، يكون AAB غير موقّع ولا يصلح للنشر على Google Play؛ لا يستخدم المشروع مفتاح debug لتوقيع إصدار release. لإصدار قابل للنشر، أضف إلى GitHub Actions Secrets القيم `ANDROID_KEYSTORE_BASE64` و`ANDROID_KEYSTORE_PASSWORD` و`ANDROID_KEY_ALIAS` و`ANDROID_KEY_PASSWORD`. يُفك مخزن المفاتيح داخل مساحة runner المؤقتة فقط. لا ترفع keystore أو كلمات مروره إلى Git.
+يشغّل GitHub Action `android.yml` بناء APK debug وAAB تجريبيين ويرفعهما كـ Artifacts. للإنتاج، يشغّل `.github/workflows/android-release.yml` عند دفع tag يبدأ بـ `v`؛ يبني APK وAAB موقّعين ويرفعهما إلى [صفحة GitHub Releases](https://github.com/bdkxbvdkdbs-source/bokerr/releases). لن يُنشر إصدار إنتاجي حتى تكتمل أسرار التوقيع المطلوبة. أضف إلى GitHub Actions Secrets القيم `ANDROID_KEYSTORE_BASE64` (keystore مشفر بـ Base64) و`ANDROID_KEYSTORE_PASSWORD` و`ANDROID_KEY_ALIAS` و`ANDROID_KEY_PASSWORD`. يُفك مخزن المفاتيح داخل مساحة runner المؤقتة فقط. لا ترفع keystore أو كلمات مروره إلى Git.
 
 اضبط متغير المستودع `BOKERR_API_BASE_URL` بعنوان API المنشور بصيغة HTTPS (دون `/` في النهاية). يدخل العنوان وقت البناء في `BuildConfig`، ولا يُضمّن أي رمز إدارة أو مفتاح سري في التطبيق. لا توضع الأسرار في `gradle.properties` أو ملفات `.env` أو شفرة Kotlin.
+
+لإصدار النسخة التالية بعد ضبط الأسرار والمتغير أعلاه، أنشئ وادفع tag مثلًا:
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+سيظهر الإصدار والملفان APK/AAB في صفحة Releases بعد نجاح البناء؛ `ANDROID_VERSION_CODE` يزيد تلقائيًا بحسب رقم تشغيل Workflow.
 
 مستقبل SMS يرسل مرجعًا ومبلغًا مستخرجين من الرسالة كبيانات غير موثوقة فقط؛ SHA-256 على الهاتف ليس إثبات دفع. لا يجوز للخادم إضافة رصيد قبل التحقق من المعاملة عبر واجهة رسمية موثوقة لمزود الدفع، مع منع التكرار. صلاحية SMS حساسة وقد تخضع لقيود Google Play وسياساته، لذلك لا تنشر هذا التكامل قبل مراجعتها والحصول على الموافقات اللازمة.
