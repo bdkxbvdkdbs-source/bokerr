@@ -10,6 +10,10 @@
   let activeTable = null;
   let socket = null;
   let currentState = null;
+  let readyPlayerId = null;
+  let readyStateID = null;
+  let pendingActionId = null;
+  let lastPlayers = [];
 
   function setSessionStatus(text) { $('sessionStatus').textContent = text; }
   function setConnection(connected, label) {
@@ -29,6 +33,18 @@
   function newActionId() {
     if (window.crypto?.randomUUID) return window.crypto.randomUUID();
     return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
+  }
+  function sameId(left, right) { return left != null && right != null && String(left) === String(right); }
+  function selfId() { return readyPlayerId ?? session?.id; }
+  function isSelf(player) { return sameId(player?.id, selfId()); }
+  function stateID() { return currentState?.stateID ?? readyStateID; }
+  function formatChips(value) {
+    if (value == null || value === '') return '—';
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toLocaleString('ar-EG', { maximumFractionDigits: 2 }) : escapeHtml(value);
+  }
+  function stageLabel(stage) {
+    return ({ waiting: 'انتظار', preflop: 'قبل الفلوب', flop: 'فلوب', turn: 'تيرن', river: 'ريفر', showdown: 'النتيجة' })[stage] || stage || 'انتظار';
   }
   async function request(path, options = {}) {
     if (!apiBase.startsWith('https://')) throw new Error('عنوان API الآمن غير مضبوط في نسخة التطبيق.');
@@ -98,45 +114,101 @@
   }
   function renderPlayers(players = []) {
     const element = $('players');
+    lastPlayers = Array.isArray(players) ? players : [];
     element.innerHTML = '';
-    $('seatCount').textContent = `${players.length} لاعب`;
-    if (!players.length) {
+    $('seatCount').textContent = `${lastPlayers.length} لاعب`;
+    if (!lastPlayers.length) {
       element.innerHTML = '<div class="empty-seat">بانتظار اللاعبين</div>';
       return;
     }
-    players.forEach((player) => {
+    lastPlayers.forEach((player) => {
       const chip = document.createElement('div');
-      chip.className = `player-chip${player.isTurn ? ' current' : ''}${player.folded ? ' folded' : ''}`;
-      chip.innerHTML = `${escapeHtml(player.name)}${player.id === session?.id ? ' · أنت' : ''}<small>${player.isTurn ? 'دوره الآن' : player.folded ? 'انسحب' : 'على الطاولة'}</small>`;
+      const isTurn = Boolean(player.isTurn) || sameId(currentState?.currentPlayerId, player.id);
+      const isDisconnected = player.isConnected === false;
+      const status = player.folded ? 'انسحب' : player.allIn ? 'الكل' : isTurn ? 'دوره الآن' : isDisconnected ? 'غير متصل' : 'على الطاولة';
+      const seat = player.seat == null ? '—' : escapeHtml(player.seat);
+      chip.className = `player-chip${isTurn ? ' current' : ''}${player.folded ? ' folded' : ''}${isDisconnected ? ' disconnected' : ''}`;
+      chip.innerHTML = `<div class="player-top"><strong>${escapeHtml(player.name || 'لاعب')}</strong><span class="seat-label">مقعد ${seat}</span></div><div class="player-stats"><span>رصيد <b>${formatChips(player.stack)}</b></span><span>رهان <b>${formatChips(player.bet)}</b></span></div><small>${status}${isSelf(player) ? ' · أنت' : ''}</small>`;
       element.appendChild(chip);
     });
   }
+  function winnerName(winner) {
+    if (winner && typeof winner === 'object') return winner.name || winner.playerName || winner.id || 'لاعب';
+    const player = lastPlayers.find((candidate) => sameId(candidate.id, winner));
+    return player?.name || winner || 'لاعب';
+  }
+  function renderWinners(winners = []) {
+    const list = Array.isArray(winners) ? winners : [];
+    const panel = $('winnerPanel');
+    const element = $('winnerList');
+    element.innerHTML = '';
+    if (!list.length) { panel.hidden = true; return; }
+    list.forEach((winner) => {
+      const row = document.createElement('div');
+      const payout = winner && typeof winner === 'object' && winner.amount != null ? ` · ${formatChips(winner.amount)} رقائق` : '';
+      row.textContent = `${winnerName(winner)}${payout}`;
+      element.appendChild(row);
+    });
+    panel.hidden = false;
+  }
+  function updateActionControls() {
+    const state = currentState || {};
+    const waiting = state.stage === 'waiting' || !state.stage;
+    const showdown = state.stage === 'showdown';
+    const myTurn = sameId(state.currentPlayerId, selfId());
+    const amount = state.toCall == null ? 'مجاراة' : `مجاراة ${formatChips(state.toCall)}`;
+    document.querySelector('[data-action="call"]').textContent = amount;
+    $('actionButtons').hidden = waiting || showdown;
+    $('amountPanel').hidden = waiting || showdown || !myTurn;
+    const currentBet = Number(state.currentBet) || 0;
+    const minimumAmount = currentBet > 0 ? currentBet + (Number(state.minRaise) || 0) : (Number(state.bigBlind) || 10);
+    $('amountHint').textContent = currentBet > 0
+      ? `أقل إجمالي للرفع: ${formatChips(minimumAmount)} · للمجاراة: ${formatChips(state.toCall ?? 0)}`
+      : `أقل رهان: ${formatChips(minimumAmount)} · للمجاراة: ${formatChips(state.toCall ?? 0)}`;
+    document.querySelectorAll('[data-action]').forEach((button) => {
+      const action = button.dataset.action;
+      const impossibleNow = (action === 'check' && (Number(state.toCall) || 0) > 0)
+        || (action === 'call' && (Number(state.toCall) || 0) <= 0)
+        || (action === 'bet' && currentBet > 0)
+        || (action === 'raise' && currentBet <= 0);
+      button.disabled = !myTurn || showdown || impossibleNow || Boolean(pendingActionId) || !socket || socket.readyState !== WebSocket.OPEN;
+    });
+    $('startButton').hidden = !waiting;
+    $('startButton').disabled = (state.players || lastPlayers).length < 2 || Boolean(pendingActionId) || !socket || socket.readyState !== WebSocket.OPEN;
+    $('nextHandButton').hidden = !showdown;
+    $('nextHandButton').disabled = Boolean(pendingActionId) || !socket || socket.readyState !== WebSocket.OPEN;
+  }
   function renderState(state) {
-    currentState = state;
-    $('stagePill').textContent = ({ preflop: 'قبل الفلوب', flop: 'فلوب', turn: 'تيرن', river: 'ريفر', showdown: 'النتيجة' })[state.stage] || state.stage;
-    $('potValue').textContent = String(state.pot ?? 0);
-    $('communityCards').innerHTML = (state.board || []).map(cardMarkup).join('');
-    $('yourCards').innerHTML = (state.yourCards || []).length ? state.yourCards.map(cardMarkup).join('') : '<span class="card-back">♠</span><span class="card-back">♠</span>';
-    renderPlayers(state.players || []);
-    const myTurn = state.currentPlayerId === session?.id;
-    $('startButton').hidden = state.stage !== 'waiting' && state.stage !== 'showdown';
-    $('startButton').disabled = (state.players || []).length < 2;
-    $('actionButtons').hidden = state.stage === 'waiting' || state.stage === 'showdown';
-    document.querySelectorAll('[data-action]').forEach((button) => { button.disabled = !myTurn || state.stage === 'showdown'; });
-    if (state.stage === 'showdown') $('gameMessage').textContent = 'انتهت الجولة. يمكن بدء جولة جديدة من الطاولة.';
-    else if (myTurn) $('gameMessage').textContent = 'دورك الآن. اختر حركة للمتابعة.';
-    else $('gameMessage').textContent = 'الجولة جارية؛ انتظر دورك.';
+    currentState = state || {};
+    readyStateID = currentState.stateID ?? readyStateID;
+    $('stagePill').textContent = stageLabel(currentState.stage);
+    $('potValue').textContent = formatChips(currentState.pot ?? 0);
+    $('communityCards').innerHTML = (currentState.board || []).map(cardMarkup).join('');
+    $('yourCards').innerHTML = (currentState.yourCards || []).length ? currentState.yourCards.map(cardMarkup).join('') : '<span class="card-back">♠</span><span class="card-back">♠</span>';
+    renderPlayers(currentState.players || []);
+    renderWinners(currentState.winners || []);
+    if (currentState.stage === 'showdown') $('gameMessage').textContent = currentState.resultMessage || 'انتهت الجولة. يمكن بدء جولة جديدة من الطاولة.';
+    else if (sameId(currentState.currentPlayerId, selfId())) $('gameMessage').textContent = 'دورك الآن. اختر حركة للمتابعة.';
+    else $('gameMessage').textContent = currentState.currentPlayerId ? 'الجولة جارية؛ انتظر دورك.' : 'بانتظار بدء الجولة.';
+    updateActionControls();
   }
   function joinTable(table) {
     if (!sessionToken || !session) { setSessionStatus('لم تكتمل الجلسة بعد. انتظر لحظة ثم حاول مجدداً.'); return; }
     activeTable = table;
     currentState = null;
+    readyPlayerId = null;
+    readyStateID = null;
+    pendingActionId = null;
+    lastPlayers = [];
     $('gameTitle').textContent = table.name;
     homeScreen.hidden = true;
     gameScreen.hidden = false;
     $('gameMessage').textContent = 'جارٍ الاتصال بطاولة Cloudflare...';
     $('startButton').hidden = false;
     $('startButton').disabled = true;
+    $('nextHandButton').hidden = true;
+    $('winnerPanel').hidden = true;
+    $('amountPanel').hidden = true;
     $('actionButtons').hidden = true;
     setConnection(false, 'جارٍ الاتصال');
     native?.saveLastTableId?.(table.id);
@@ -151,50 +223,105 @@
     socket.onopen = () => {
       setConnection(true, 'متصل بالسيرفر');
       $('gameMessage').textContent = 'أنت على الطاولة. بانتظار لاعب آخر.';
-      $('startButton').disabled = true;
+      updateActionControls();
       loadTables();
     };
     socket.onmessage = (event) => {
       let message;
       try { message = JSON.parse(event.data); } catch { return; }
       if (message.type === 'ready') {
+        readyPlayerId = message.playerId ?? readyPlayerId;
+        readyStateID = message.stateID ?? readyStateID;
         setConnection(true, 'متصل بالسيرفر');
+        updateActionControls();
         return;
       }
       if (message.type === 'presence') {
-        renderPlayers((message.players || []).map((player) => ({ ...player, isTurn: false })));
-        $('startButton').disabled = (message.seated || 0) < 2;
-        $('gameMessage').textContent = (message.seated || 0) < 2 ? 'أنت على الطاولة. بانتظار لاعب آخر.' : 'يوجد لاعبون؛ ابدأ جولة تجريبية عندما تكون مستعداً.';
+        if (!currentState || currentState.stage === 'waiting') renderPlayers(message.players || []);
+        const seated = Number(message.seated ?? (message.players || []).length) || 0;
+        $('seatCount').textContent = `${seated} لاعب`;
+        if (!currentState || currentState.stage === 'waiting') {
+          $('gameMessage').textContent = seated < 2 ? 'أنت على الطاولة. بانتظار لاعب آخر.' : 'يوجد لاعبون؛ ابدأ الجولة عندما تكون مستعداً.';
+        }
+        updateActionControls();
         return;
       }
       if (message.type === 'state') { renderState(message); return; }
-      if (message.type === 'round_started') { $('gameMessage').textContent = 'بدأت الجولة من محرك اللعب على السيرفر.'; return; }
-      if (message.type === 'action') { $('gameMessage').textContent = 'تم تسجيل الحركة على السيرفر.'; return; }
-      if (message.type === 'showdown') {
-        const won = (message.winners || []).includes(session?.id);
-        $('gameMessage').textContent = won ? 'أنت الفائز في هذه الجولة.' : 'انتهت الجولة، واحتُسبت النتيجة على السيرفر.';
+      if (message.type === 'round_started') {
+        pendingActionId = null;
+        renderWinners([]);
+        $('gameMessage').textContent = 'بدأت الجولة من محرك اللعب على السيرفر.';
+        updateActionControls();
         return;
       }
-      if (message.type === 'error') $('gameMessage').textContent = `تعذر تنفيذ الحركة: ${message.error}`;
+      if (message.type === 'action') {
+        pendingActionId = null;
+        $('gameMessage').textContent = 'تم تسجيل الحركة على السيرفر.';
+        updateActionControls();
+        return;
+      }
+      if (message.type === 'showdown') {
+        pendingActionId = null;
+        currentState = { ...(currentState || {}), stage: 'showdown', winners: message.winners || [] };
+        renderWinners(message.winners || []);
+        const won = (message.winners || []).some((winner) => sameId(winner?.id ?? winner, selfId()));
+        $('stagePill').textContent = 'النتيجة';
+        $('actionButtons').hidden = true;
+        $('amountPanel').hidden = true;
+        $('startButton').hidden = true;
+        $('nextHandButton').hidden = false;
+        $('gameMessage').textContent = won ? 'أنت الفائز في هذه الجولة.' : 'انتهت الجولة، واحتُسبت النتيجة على السيرفر.';
+        updateActionControls();
+        return;
+      }
+      if (message.type === 'error') {
+        if (!message.actionId || message.actionId === pendingActionId) pendingActionId = null;
+        $('gameMessage').textContent = `تعذر تنفيذ الحركة: ${message.error || 'طلب غير صالح'}`;
+        updateActionControls();
+      }
     };
     socket.onerror = () => {
       setConnection(false, 'تعذر الاتصال');
       $('gameMessage').textContent = 'فشل اتصال الطاولة. تحقق من الشبكة ثم ارجع إلى الصالة وحاول مجدداً.';
+      updateActionControls();
     };
-    socket.onclose = () => setConnection(false, 'انقطع الاتصال');
+    socket.onclose = () => {
+      pendingActionId = null;
+      setConnection(false, 'انقطع الاتصال');
+      updateActionControls();
+    };
   }
   function leaveTable() {
     if (socket) { try { socket.close(); } catch { /* ignore */ } }
     socket = null;
     activeTable = null;
     currentState = null;
+    readyPlayerId = null;
+    readyStateID = null;
+    pendingActionId = null;
+    lastPlayers = [];
     gameScreen.hidden = true;
     homeScreen.hidden = false;
     loadTables();
   }
   function sendMessage(type) {
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    socket.send(JSON.stringify({ type, actionId: newActionId() }));
+    const payload = { type, actionId: newActionId() };
+    const currentStateID = stateID();
+    if (currentStateID != null) payload.stateID = currentStateID;
+    if (type === 'bet' || type === 'raise') {
+      const amount = Number($('amountInput').value);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        $('gameMessage').textContent = 'أدخل مبلغاً رقمياً أكبر من صفر قبل متابعة الرهان.';
+        $('amountInput').focus();
+        return;
+      }
+      payload.amount = amount;
+    }
+    pendingActionId = payload.actionId;
+    socket.send(JSON.stringify(payload));
+    $('gameMessage').textContent = 'جارٍ إرسال الحركة إلى السيرفر...';
+    updateActionControls();
   }
   async function saveDisplayName() {
     const name = $('displayName').value.trim().replace(/\s+/g, ' ');
@@ -212,7 +339,11 @@
   $('saveNameButton').addEventListener('click', saveDisplayName);
   $('backButton').addEventListener('click', leaveTable);
   $('startButton').addEventListener('click', () => sendMessage('start'));
+  $('nextHandButton').addEventListener('click', () => sendMessage('startNextHand'));
   document.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => sendMessage(button.dataset.action)));
+  $('amountInput').addEventListener('input', () => {
+    $('amountInput').setCustomValidity('');
+  });
   window.addEventListener('beforeunload', () => { if (socket) socket.close(); });
 
   (async () => {

@@ -1,15 +1,18 @@
-# bokerr
+# Bokerr
 
-[![Open in Bolt](https://bolt.new/static/open-in-bolt.svg)](https://bolt.new/~/sb1-3ccchpmx)
+يضم هذا المستودع واجهة React/Vite، مشروع Android/Kotlin، وواجهة Android WebView العربية. اللعب الشبكي لـTexas Hold'em وOmaha يتصل بمحرك `boardgame.io` الموجود في مستودع backend المنفصل: [bdkxbvdkdbs-source/boker](https://github.com/bdkxbvdkdbs-source/boker).
 
-## المشروع
+تستخدم الواجهة عنوان Worker الافتراضي `https://bokerr-api.bdkxbvdkdbs.workers.dev`؛ يمكن تغييره عند البناء باستخدام `VITE_BOKERR_API_BASE_URL` لواجهة Vite أو `BOKERR_API_BASE_URL` لبناء Android. تُنشأ جلسات ضيف، ثم يتصل العميل بـWebSocket إلى Durable Object الطاولة. يحتفظ التطبيق بميزات الطاولات والملف الشخصي والشاشات الحالية؛ شاشة المحفظة القديمة غير مرتبطة بدفع حقيقي أو بمحرك الطاولة.
 
-هذا المستودع يحتوي على واجهة Bokerr للويب، مكوّن React Native، تطبيق Android Kotlin، ولوحة الإدارة. المحفظة والدفع اختياريان، ويوجد زر «تخطي الآن» في الواجهة.
+## البناء المحلي
 
-تم عزل Cloudflare Worker وDurable Objects وقاعدة D1 في المستودع المنفصل:
+```bash
+npm ci
+npm run typecheck
+npm run build
+npm run lint
+```
 
-[bdkxbvdkdbs-source/boker](https://github.com/bdkxbvdkdbs-source/boker)
+ينتج بناء الويب إلى `dist`. يبني `.github/workflows/android.yml` نسخة Android عند التغيير على `main`؛ وسير `android-release.yml` ينشر APK وAAB موقّعين عند إنشاء tag يبدأ بـ`v` إذا كانت أسرار التوقيع مضبوطة. نشر Cloudflare Worker واختباراته يديرهما المستودع `boker`، لا هذا المستودع.
 
-راجع [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) لخطوات الربط. التكامل الرسمي مع Sham Cash يحتاج API أو اعتمادًا من مزود الخدمة؛ مستقبل SMS لا يشحن الرصيد مباشرة دون تحقق الخادم.
-
-نشر واجهة Vite يتم من جذر هذا المستودع إلى `dist`. لا يوجد Backend Worker داخل هذا المستودع بعد الآن.
+راجع [دليل التنفيذ والاتصال](docs/IMPLEMENTATION.md) لعقد HTTP/WebSocket وأسماء الإعدادات والأسرار المطلوبة.

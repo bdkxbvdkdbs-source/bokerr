@@ -1,41 +1,35 @@
 # تشغيل وحدات Bokerr
 
-## 1. Backend Worker وD1
+## البنية الحالية
 
-تم عزل Cloudflare Worker وDurable Objects ومحرك الجولات وقاعدة D1 في المستودع المنفصل:
+واجهة Bokerr موجودة في هذا المستودع، ويُدار Worker ومحرك اللعب في مستودع backend منفصل:
 
-https://github.com/bdkxbvdkdbs-source/boker
+- واجهة React/Vite والواجهة المدمجة في Android: هذا المستودع `bdkxbvdkdbs-source/bokerr`.
+- Cloudflare Worker وDurable Objects ومحرك Texas/Omaha: [`bdkxbvdkdbs-source/boker`](https://github.com/bdkxbvdkdbs-source/boker).
 
-نفّذ أوامر Worker من مستودع `boker` فقط:
+يعمل `boardgame.io` Master داخل Worker، وتنفذ كل طاولة في Durable Object مستقل، مع تخزين حالة اللعبة عبر StorageAPI مخصص فوق Durable Object storage. يستخدم `SESSION_KV` جلسات الضيف فقط. يتولى Worker تعاقب الأدوار والرهانات وكشف الأوراق، ويرسل أوراق كل لاعب الخاصّة له وحده. بروتوكول الواجهة WebSocket مخصص ومتوافق مع هذا المحرك؛ لا يلزم خادم Node منفصل.
 
-```bash
-npm install
-npx wrangler d1 create bokerr
-# ضع database_id الناتج في wrangler.toml
-npm run db:migrate
-npx wrangler secret put ADMIN_TOKEN
-npx wrangler secret put SMS_SIGNING_SECRET
-npm run dev
-npm run deploy
-```
+## عناوين الاتصال
 
-يوجد Workflow نشر مستقل داخل مستودع `boker` باسم `Deploy Bokerr Backend Worker`. أضف إليه أسرار `CLOUDFLARE_API_TOKEN` و`CLOUDFLARE_ACCOUNT_ID`.
+- عنوان HTTP الافتراضي: `https://bokerr-api.bdkxbvdkdbs.workers.dev`.
+- يمكن ضبط عنوان الويب عبر متغير البناء `VITE_BOKERR_API_BASE_URL`.
+- Android يستعمل `BOKERR_API_BASE_URL`، وله قيمة افتراضية لنفس Worker في GitHub Actions.
+- الجلسة تُنشأ عبر `POST /api/session`؛ ويحمل WebSocket إلى `/ws/<tableId>` الرمز ضمن `Sec-WebSocket-Protocol` باسم `bokerr-v1`، لا ضمن URL.
+- أفعال اللعبة تشمل `start`, `startNextHand`, `fold`, `check`, `call`, `bet`, `raise`, `allIn`. كل فعل يرسل `actionId` فريداً و`stateID` الرقمي الحالي؛ `raise.amount` هو إجمالي الرهان المستهدف في الجولة.
 
-## 2. الواجهات
+يستخدم Worker قائمة CORS في `ALLOWED_ORIGINS` للسماح بـAndroid WebView وGitHub Pages وعناوين التطوير المحلية. عند تغيير النطاق، حدّث هذا المتغير في `boker/wrangler.toml` ثم انشر Worker.
 
-- `mobile/src/PokerApp.jsx` هو مكوّن React Native الأساسي.
-- `admin/src/AdminDashboard.tsx` يُضمّن في تطبيق React/Next.js إداري منفصل.
-- أضف عنوان Worker المنشور إلى `API_URL` في التطبيقين.
-- لا تضع `ADMIN_TOKEN` داخل تطبيق الهاتف أو الويب العام.
+## النشر
 
-## 3. إشعارات Sham Cash
+- يُبنى الويب محلياً بـ`npm ci && npm run build` إلى `dist`؛ لا يوجد في المستودع حالياً Workflow ينشر Vite إلى GitHub Pages. Workflows الموجودة في `.github/workflows` تخص بناء Android وإصداراته.
+- نشر Worker يتم من مستودع `boker`، وسير العمل `Deploy Bokerr Backend Worker` ينشر عند push إلى `main` بعد نجاح `npm run typecheck` و`npm test`.
+- يلزم أن يحتوي مستودع `boker` على GitHub Actions Secret باسم `CLOUDFLARE_API_TOKEN`. لا يُطلب `CLOUDFLARE_ACCOUNT_ID` كـSecret في سير العمل الحالي؛ معرّف الحساب محفوظ بإعداد Wrangler في المستودع.
+- لتغيير عنوان API، حدّث قيمة `VITE_BOKERR_API_BASE_URL` للويب و`BOKERR_API_BASE_URL` لعملية بناء Android، مع ضبط CORS في backend.
 
-يجب تسجيل `ShamCashSmsListener` في Android Manifest مع صلاحية SMS المناسبة وسياسة Google Play. الملف لا يشحن الرصيد محليًا؛ يرسل إثباتًا للخادم، ويجب استبدال عنوان `api.example.com` بعنوان Worker في مستودع `boker`. لا يمكن اعتماد التكامل الحقيقي دون API أو صيغة SMS رسمية من Sham Cash.
+## المدفوعات وإشعارات Sham Cash
 
-## 4. الأمان
+لا يضيف Worker لعبة البوكر مسارات تحويل مالية أو دفع أو SMS. تبقى أي شاشة محفظة موجودة في الواجهة منفصلة عن هذا المحرك، ولا يتغير رصيدها من API اللعب. رصيد الطاولة افتراضي خاص باللعبة، وليس إيداعاً أو سحباً حقيقياً. يتطلب أي تكامل مالي لاحق API رسمياً وتحققاً خادمياً؛ لا تعتمد على رسائل SMS غير الموثقة.
 
-استخدم HTTPS فقط، واستبدل التحقق التجريبي من JWT بموفر هوية حقيقي، وخزّن رمز الإدارة في Secret مع تدويره وتطبيق معدل طلبات. لا تعتمد على نص SMS وحده في الإنتاج؛ استخدم توقيع المزود أو API رسميًا. لا تضع مفاتيح سرية في JSX أو APK.
+## أسرار وأمان
 
-## 5. المحفظة الاختيارية
-
-المستخدم يستطيع فتح الصالة دون إنشاء محفظة أو إضافة دفع. أزرار الإيداع والسحب متاحة من شاشة المحفظة فقط، وزر «تخطي الآن» يعيد المستخدم إلى الصالة.
+لا تضع `ADMIN_TOKEN` أو `CLOUDFLARE_API_TOKEN` أو مفاتيح التوقيع في واجهة الويب أو Android أو Git. خزّنها في GitHub Actions Secrets أو Cloudflare Worker Secrets حسب موضع استخدامها. جلسات Bokerr الحالية جلسات ضيوف وليست هوية حساب موثّقة لأغراض مالية.

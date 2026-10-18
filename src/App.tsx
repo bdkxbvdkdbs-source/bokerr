@@ -5,9 +5,11 @@ import LobbyScreen from '@/screens/LobbyScreen';
 import WalletScreen from '@/screens/WalletScreen';
 import SupportScreen from '@/screens/SupportScreen';
 import ProfileScreen from '@/screens/ProfileScreen';
+import OnlineGameScreen from '@/screens/OnlineGameScreen';
 import { CURRENT_USER, INITIAL_TXS, SUPPORT_WHATSAPP } from '@/data';
 import { syp } from '@/utils/format';
 import type { TabKey, PokerTable, WalletTx } from '@/types';
+import { updateSession } from '@/api/bokerr';
 
 function App() {
   const [tab, setTab] = useState<TabKey>('lobby');
@@ -16,6 +18,7 @@ function App() {
   const [user, setUser] = useState(CURRENT_USER);
   const [sheet, setSheet] = useState<null | 'deposit' | 'withdraw'>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [gameTable, setGameTable] = useState<PokerTable | null>(null);
 
   const flash = (msg: string) => {
     setToast(msg);
@@ -67,13 +70,20 @@ function App() {
 
   const handleRename = (name: string) => {
     setUser((u) => ({ ...u, username: name }));
+    void updateSession({ displayName: name }, name).catch(() => undefined);
     flash('تم تحديث اسم المستخدم');
   };
 
   const handlePassword = () => flash('تم تحديث كلمة المرور');
   const handleLogout = () => flash('تم تسجيل الخروج');
 
-  const handleJoin = (t: PokerTable) => flash(`جارٍ الدخول إلى ${t.name}…`);
+  const handleJoin = (t: PokerTable) => setGameTable(t);
+  const leaveGame = () => {
+    void updateSession({ lastTableId: null }, user.username).catch(() => undefined);
+    setGameTable(null);
+    setTab('lobby');
+    flash('غادرت الطاولة');
+  };
 
   return (
     <div className="relative min-h-screen bg-felt-950 text-gray-100 max-w-md mx-auto overflow-hidden">
@@ -82,28 +92,34 @@ function App() {
       <div className="pointer-events-none absolute top-0 inset-x-0 h-40 bg-gold-sheen opacity-[0.06] animate-shimmer" />
 
       <main className="relative min-h-screen">
-        {tab === 'lobby' && <LobbyScreen onJoin={handleJoin} />}
-        {tab === 'wallet' && (
-          <WalletScreen
-            balance={balance}
-            txs={txs}
-            onDeposit={() => setSheet('deposit')}
-            onWithdraw={() => setSheet('withdraw')}
-            onSkip={() => setTab('lobby')}
-          />
-        )}
-        {tab === 'support' && <SupportScreen onOpenWhatsApp={openWhatsApp} />}
-        {tab === 'profile' && (
-          <ProfileScreen
-            user={{ ...user, balance }}
-            onLogout={handleLogout}
-            onRename={handleRename}
-            onPasswordChange={handlePassword}
-          />
+        {gameTable ? (
+          <OnlineGameScreen table={gameTable} displayName={user.username} onLeave={leaveGame} />
+        ) : (
+          <>
+            {tab === 'lobby' && <LobbyScreen onJoin={handleJoin} />}
+            {tab === 'wallet' && (
+              <WalletScreen
+                balance={balance}
+                txs={txs}
+                onDeposit={() => setSheet('deposit')}
+                onWithdraw={() => setSheet('withdraw')}
+                onSkip={() => setTab('lobby')}
+              />
+            )}
+            {tab === 'support' && <SupportScreen onOpenWhatsApp={openWhatsApp} />}
+            {tab === 'profile' && (
+              <ProfileScreen
+                user={{ ...user, balance }}
+                onLogout={handleLogout}
+                onRename={handleRename}
+                onPasswordChange={handlePassword}
+              />
+            )}
+          </>
         )}
       </main>
 
-      <BottomNav active={tab} onChange={setTab} />
+      {!gameTable && <BottomNav active={tab} onChange={setTab} />}
 
       <ShamCashSheet
         open={sheet !== null}

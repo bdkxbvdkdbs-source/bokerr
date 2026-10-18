@@ -64,12 +64,24 @@
       </div>
 
       <div id="gameMessage" class="game-message" aria-live="polite">اتصل بالطاولة وانتظر لاعباً آخر لبدء الجولة.</div>
-      <button id="startButton" class="primary-button start-button" disabled>بدء جولة تجريبية</button>
+      <div id="winnerPanel" class="winner-panel" hidden>
+        <div class="winner-heading">نتيجة الجولة</div>
+        <div id="winnerList" class="winner-list"></div>
+      </div>
+      <button id="startButton" class="primary-button start-button" disabled>بدء الجولة</button>
+      <button id="nextHandButton" class="primary-button start-button" hidden>الجولة التالية</button>
+      <div id="amountPanel" class="amount-panel" hidden>
+        <label for="amountInput">مقدار الرهان أو الرفع</label>
+        <input id="amountInput" type="number" inputmode="decimal" min="0" step="1" placeholder="أدخل رقماً" autocomplete="off">
+        <div id="amountHint" class="amount-hint">اكتب رقماً قبل اختيار الرهان أو الرفع.</div>
+      </div>
       <div id="actionButtons" class="action-buttons" hidden>
         <button data-action="fold" class="action-button secondary-action">انسحاب</button>
         <button data-action="check" class="action-button">تمرير</button>
         <button data-action="call" class="action-button">مجاراة</button>
-        <button data-action="bet" class="action-button gold-action">رهان تجريبي</button>
+        <button data-action="bet" class="action-button gold-action">رهان</button>
+        <button data-action="raise" class="action-button gold-action">رفع الرهان</button>
+        <button data-action="allIn" class="action-button all-in-action">الكل</button>
       </div>
       <p class="footer-note compact-note">اللعب تجريبي بلا أموال أو محفظة.</p>
     </section>
