@@ -11,7 +11,7 @@ android {
     buildFeatures { buildConfig = true }
     defaultConfig {
         applicationId 'com.bokerr'
-        minSdk 26
+        minSdk 21
         targetSdk 35
         versionCode providers.environmentVariable('ANDROID_VERSION_CODE').getOrElse('1').toInteger()
         versionName providers.environmentVariable('BOKERR_VERSION_NAME').getOrElse('1.0.0').replaceFirst('^v', '')

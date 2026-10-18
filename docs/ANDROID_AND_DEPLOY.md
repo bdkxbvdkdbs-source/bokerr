@@ -38,7 +38,7 @@ npx wscat -c wss://YOUR_WORKER.workers.dev/ws/berlin-9max
 
 ## Android (Kotlin)
 
-المشروع الأصلي موجود في `mobile/android` ومصدر التطبيق بلغة Kotlin. يتطلب البناء Android SDK وGradle 8.10 أو أحدث:
+المشروع الأصلي موجود في `mobile/android` ومصدر التطبيق بلغة Kotlin. يتطلب البناء Android SDK وGradle 8.10 أو أحدث، ويدعم التثبيت ابتداءً من Android 5.0 (API 21) بسبب متطلبات المكتبات؛ لا يمكن ضمان العمل على كل أجهزة Android أو الإصدارات الأقدم:
 
 ```bash
 cd mobile/android
@@ -49,11 +49,11 @@ gradle assembleDebug bundleRelease
 
 يستخدم Workflow الإنتاج افتراضيًا `https://bokerr-api.bdkxbvdkdbs.workers.dev`، ويمكن تجاوز العنوان بمتغير المستودع `BOKERR_API_BASE_URL` بصيغة HTTPS (دون `/` في النهاية). يدخل العنوان وقت البناء في `BuildConfig`، ولا يُضمّن أي رمز إدارة أو مفتاح سري في التطبيق. لا توضع الأسرار في `gradle.properties` أو ملفات `.env` أو شفرة Kotlin.
 
-لإصدار النسخة التالية بعد ضبط الأسرار والمتغير أعلاه، أنشئ وادفع tag مثلًا:
+لإصدار النسخة التالية بعد ضبط أسرار التوقيع، أنشئ وادفع tag مثلًا:
 
 ```bash
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.0.2
+git push origin v1.0.2
 ```
 
 سيظهر الإصدار والملفان APK/AAB في صفحة Releases بعد نجاح البناء؛ `ANDROID_VERSION_CODE` يزيد تلقائيًا بحسب رقم تشغيل Workflow.
