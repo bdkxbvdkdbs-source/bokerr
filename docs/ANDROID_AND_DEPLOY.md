@@ -2,6 +2,8 @@
 
 ## Cloudflare Worker
 
+يوجد مساران منفصلان: تطبيق الويب في جذر المستودع، وBackend Worker داخل `backend/worker`. لا تستخدم `npx wrangler deploy` من جذر المستودع؛ هذا يجعل Cloudflare يكتشف Vite ويحاول تهيئته تلقائيًا. في Cloudflare Workers Builds اجعل **Root directory** هو `backend/worker`، واترك Build command فارغًا أو استخدم `npm install`، واجعل Deploy command هو `npm run deploy`. أما Cloudflare Pages للواجهة فليستخدم `npm run build` ومجلد `dist` فقط، دون `wrangler deploy`.
+
 سجّل الدخول محليًا أولًا:
 
 ```bash

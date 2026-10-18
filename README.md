@@ -7,3 +7,5 @@
 المجلد `src` هو واجهة الويب الحالية. تمت إضافة `backend/worker` لخادم Cloudflare Worker وDurable Object ومحرك الجولات، و`mobile` لمكوّن React Native وAndroid SMS receiver، و`admin` لمكوّن لوحة الإدارة. المحفظة والدفع اختياريان، ويوجد زر «تخطي الآن» في الواجهة.
 
 راجع [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) لخطوات إعداد D1 وSecrets والنشر. التكامل الرسمي مع Sham Cash يحتاج API أو اعتمادًا من مزود الخدمة؛ مستقبل SMS لا يشحن الرصيد مباشرة دون تحقق الخادم.
+
+نشر Backend Worker يتم من `backend/worker`، بينما نشر واجهة Vite يتم من جذر المشروع إلى `dist`. لا تشغّل `wrangler deploy` من جذر المشروع.
