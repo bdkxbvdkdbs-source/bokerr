@@ -21,16 +21,16 @@ android {
 
     def keystorePath = providers.environmentVariable('ANDROID_KEYSTORE_PATH').getOrElse('')
     def keystorePassword = providers.environmentVariable('ANDROID_KEYSTORE_PASSWORD').getOrElse('')
-    def keyAlias = providers.environmentVariable('ANDROID_KEY_ALIAS').getOrElse('')
-    def keyPassword = providers.environmentVariable('ANDROID_KEY_PASSWORD').getOrElse('')
-    def releaseSigningConfigured = [keystorePath, keystorePassword, keyAlias, keyPassword].every { !it.isBlank() }
+    def releaseKeyAlias = providers.environmentVariable('ANDROID_KEY_ALIAS').getOrElse('')
+    def releaseKeyPassword = providers.environmentVariable('ANDROID_KEY_PASSWORD').getOrElse('')
+    def releaseSigningConfigured = [keystorePath, keystorePassword, releaseKeyAlias, releaseKeyPassword].every { !it.isBlank() }
     if (releaseSigningConfigured) {
         signingConfigs {
             release {
                 storeFile file(keystorePath)
                 storePassword keystorePassword
-                keyAlias keyAlias
-                keyPassword keyPassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
             }
         }
     }
