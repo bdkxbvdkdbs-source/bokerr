@@ -47,7 +47,7 @@ gradle assembleDebug bundleRelease
 
 يشغّل GitHub Action `android.yml` بناء APK debug وAAB تجريبيين ويرفعهما كـ Artifacts. للإنتاج، يشغّل `.github/workflows/android-release.yml` عند دفع tag يبدأ بـ `v`؛ يبني APK وAAB موقّعين ويرفعهما إلى [صفحة GitHub Releases](https://github.com/bdkxbvdkdbs-source/bokerr/releases). لن يُنشر إصدار إنتاجي حتى تكتمل أسرار التوقيع المطلوبة. يقرأ Workflow ملف keystore من Secret باسم `PASTE_ANDROID_KEYSTORE_BASE64_HERE` (مشفّر بـ Base64)، إضافة إلى `ANDROID_KEYSTORE_PASSWORD` و`ANDROID_KEY_ALIAS` و`ANDROID_KEY_PASSWORD`. يُفك مخزن المفاتيح داخل مساحة runner المؤقتة فقط. لا ترفع keystore أو كلمات مروره إلى Git.
 
-اضبط متغير المستودع `BOKERR_API_BASE_URL` بعنوان API المنشور بصيغة HTTPS (دون `/` في النهاية). يدخل العنوان وقت البناء في `BuildConfig`، ولا يُضمّن أي رمز إدارة أو مفتاح سري في التطبيق. لا توضع الأسرار في `gradle.properties` أو ملفات `.env` أو شفرة Kotlin.
+يستخدم Workflow الإنتاج افتراضيًا `https://bokerr-api.bdkxbvdkdbs.workers.dev`، ويمكن تجاوز العنوان بمتغير المستودع `BOKERR_API_BASE_URL` بصيغة HTTPS (دون `/` في النهاية). يدخل العنوان وقت البناء في `BuildConfig`، ولا يُضمّن أي رمز إدارة أو مفتاح سري في التطبيق. لا توضع الأسرار في `gradle.properties` أو ملفات `.env` أو شفرة Kotlin.
 
 لإصدار النسخة التالية بعد ضبط الأسرار والمتغير أعلاه، أنشئ وادفع tag مثلًا:
 

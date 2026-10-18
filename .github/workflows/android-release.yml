@@ -48,7 +48,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          BOKERR_API_BASE_URL: ${{ vars.BOKERR_API_BASE_URL }}
+          BOKERR_API_BASE_URL: ${{ vars.BOKERR_API_BASE_URL || 'https://bokerr-api.bdkxbvdkdbs.workers.dev' }}
         run: |
           set -euo pipefail
           for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
@@ -68,7 +68,7 @@ jobs:
 
       - name: Build signed production APK and AAB
         env:
-          BOKERR_API_BASE_URL: ${{ vars.BOKERR_API_BASE_URL }}
+          BOKERR_API_BASE_URL: ${{ vars.BOKERR_API_BASE_URL || 'https://bokerr-api.bdkxbvdkdbs.workers.dev' }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
