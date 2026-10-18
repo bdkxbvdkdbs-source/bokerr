@@ -2,10 +2,14 @@
 
 [![Open in Bolt](https://bolt.new/static/open-in-bolt.svg)](https://bolt.new/~/sb1-3ccchpmx)
 
-## الوحدات المضافة
+## المشروع
 
-المجلد `src` هو واجهة الويب الحالية. تمت إضافة `backend/worker` لخادم Cloudflare Worker وDurable Object ومحرك الجولات، و`mobile` لمكوّن React Native وAndroid SMS receiver، و`admin` لمكوّن لوحة الإدارة. المحفظة والدفع اختياريان، ويوجد زر «تخطي الآن» في الواجهة.
+هذا المستودع يحتوي على واجهة Bokerr للويب، مكوّن React Native، تطبيق Android Kotlin، ولوحة الإدارة. المحفظة والدفع اختياريان، ويوجد زر «تخطي الآن» في الواجهة.
 
-راجع [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) لخطوات إعداد D1 وSecrets والنشر. التكامل الرسمي مع Sham Cash يحتاج API أو اعتمادًا من مزود الخدمة؛ مستقبل SMS لا يشحن الرصيد مباشرة دون تحقق الخادم.
+تم عزل Cloudflare Worker وDurable Objects وقاعدة D1 في المستودع المنفصل:
 
-نشر Backend Worker يتم من `backend/worker`، بينما نشر واجهة Vite يتم من جذر المشروع إلى `dist`. لا تشغّل `wrangler deploy` من جذر المشروع.
+[bdkxbvdkdbs-source/boker](https://github.com/bdkxbvdkdbs-source/boker)
+
+راجع [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) لخطوات الربط. التكامل الرسمي مع Sham Cash يحتاج API أو اعتمادًا من مزود الخدمة؛ مستقبل SMS لا يشحن الرصيد مباشرة دون تحقق الخادم.
+
+نشر واجهة Vite يتم من جذر هذا المستودع إلى `dist`. لا يوجد Backend Worker داخل هذا المستودع بعد الآن.
