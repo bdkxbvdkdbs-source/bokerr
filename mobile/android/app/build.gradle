@@ -15,7 +15,7 @@ android {
         targetSdk 35
         versionCode providers.environmentVariable('ANDROID_VERSION_CODE').getOrElse('1').toInteger()
         versionName providers.environmentVariable('BOKERR_VERSION_NAME').getOrElse('1.0.0').replaceFirst('^v', '')
-        def apiBaseUrl = providers.gradleProperty('BOKERR_API_BASE_URL').orElse(providers.environmentVariable('BOKERR_API_BASE_URL')).getOrElse('')
+        def apiBaseUrl = providers.gradleProperty('BOKERR_API_BASE_URL').orElse(providers.environmentVariable('BOKERR_API_BASE_URL')).getOrElse('https://bokerr-api.bdkxbvdkdbs.workers.dev')
         buildConfigField 'String', 'API_BASE_URL', '\"' + apiBaseUrl.replace('\\', '\\\\').replace('\"', '\\\"') + '\"'
     }
 
@@ -46,6 +46,7 @@ android {
 dependencies {
     implementation 'androidx.core:core-ktx:1.15.0'
     implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.webkit:webkit:1.10.0'
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'

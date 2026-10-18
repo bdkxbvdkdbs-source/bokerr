@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#081610">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://bokerr-api.bdkxbvdkdbs.workers.dev wss://bokerr-api.bdkxbvdkdbs.workers.dev; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Bokerr</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-lockup">
+      <span class="brand-mark" aria-hidden="true"><span>♠</span></span>
+      <div><strong>BOKERR</strong><small>صالة اللعب</small></div>
+    </div>
+    <button class="icon-button" id="refreshButton" aria-label="تحديث الطاولات" title="تحديث">↻</button>
+  </header>
+
+  <main>
+    <section id="homeScreen" class="screen">
+      <div class="hero-card">
+        <div class="eyebrow"><span class="live-dot"></span> طاولات مباشرة</div>
+        <h1>اللعب يبدأ<br><span>من هنا.</span></h1>
+        <p class="hero-copy">اختر طاولتك، ادخل باسمك، واستمتع بجلسة بوكر مباشرة.</p>
+        <div class="profile-panel">
+          <label for="displayName">اسمك على الطاولة</label>
+          <div class="name-row">
+            <input id="displayName" maxlength="24" autocomplete="nickname" placeholder="اسم اللاعب">
+            <button id="saveNameButton" class="small-button">حفظ</button>
+          </div>
+          <div id="sessionStatus" class="session-status" aria-live="polite">جارٍ تجهيز جلستك الآمنة...</div>
+        </div>
+      </div>
+
+      <div class="section-heading">
+        <div><span class="section-kicker">اختر أسلوبك</span><h2>الطاولات</h2></div>
+        <span id="tableCount" class="count-pill">—</span>
+      </div>
+      <div id="tables" class="table-list" aria-live="polite">
+        <div class="loading-card"><span class="spinner"></span><span>جارٍ الاتصال بالسيرفر...</span></div>
+      </div>
+      <p class="footer-note">جلسة ضيف محفوظة على هذا الهاتف والسيرفر. لا توجد محفظة أو مدفوعات داخل التطبيق.</p>
+    </section>
+
+    <section id="gameScreen" class="screen" hidden>
+      <div class="game-topline">
+        <button id="backButton" class="back-button"><span aria-hidden="true">›</span> الصالة</button>
+        <div class="connection-pill"><span id="connectionDot" class="live-dot muted"></span><span id="connectionLabel">جارٍ الاتصال</span></div>
+      </div>
+      <div class="game-title-row"><div><span class="section-kicker">طاولة مباشرة</span><h1 id="gameTitle">البوكر</h1></div><span id="stagePill" class="stage-pill">انتظار</span></div>
+
+      <div class="felt-table">
+        <div class="table-ornament" aria-hidden="true">B</div>
+        <div class="table-meta"><span id="seatCount">0 لاعب</span><span>جلسة تجريبية</span></div>
+        <div id="players" class="players-list"><div class="empty-seat">بانتظار اللاعبين</div></div>
+        <div class="community-area">
+          <div class="pot-label">مجموع الجولة</div>
+          <div id="potValue" class="pot-value">0</div>
+          <div id="communityCards" class="cards-row"></div>
+        </div>
+        <div class="hand-area"><span class="hand-label">أوراقك</span><div id="yourCards" class="cards-row"><span class="card-back">♠</span><span class="card-back">♠</span></div></div>
+      </div>
+
+      <div id="gameMessage" class="game-message" aria-live="polite">اتصل بالطاولة وانتظر لاعباً آخر لبدء الجولة.</div>
+      <button id="startButton" class="primary-button start-button" disabled>بدء جولة تجريبية</button>
+      <div id="actionButtons" class="action-buttons" hidden>
+        <button data-action="fold" class="action-button secondary-action">انسحاب</button>
+        <button data-action="check" class="action-button">تمرير</button>
+        <button data-action="call" class="action-button">مجاراة</button>
+        <button data-action="bet" class="action-button gold-action">رهان تجريبي</button>
+      </div>
+      <p class="footer-note compact-note">اللعب تجريبي بلا أموال أو محفظة.</p>
+    </section>
+  </main>
+</body>
+</html>

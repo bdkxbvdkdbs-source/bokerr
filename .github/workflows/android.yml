@@ -30,7 +30,7 @@ jobs:
           fi
       - name: Build debug APK and release AAB
         env:
-          BOKERR_API_BASE_URL: ${{ vars.BOKERR_API_BASE_URL }}
+          BOKERR_API_BASE_URL: ${{ vars.BOKERR_API_BASE_URL || 'https://bokerr-api.bdkxbvdkdbs.workers.dev' }}
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/android/release.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}

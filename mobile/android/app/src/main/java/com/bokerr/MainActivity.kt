@@ -1,50 +1,94 @@
 package com.bokerr
 
-import android.graphics.Color
+import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Bundle
-import android.view.Gravity
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.TextView
+import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
-import java.util.UUID
+import androidx.webkit.WebViewAssetLoader
 
 class MainActivity : AppCompatActivity() {
-    private val client = OkHttpClient()
-    private lateinit var content: LinearLayout
-    private val gold = Color.rgb(232, 199, 94)
-    private val dark = Color.rgb(6, 20, 14)
-    private val card = Color.rgb(16, 26, 19)
+    private lateinit var webView: WebView
 
-    override fun onCreate(state: Bundle?) { super.onCreate(state); showLobby() }
-    private fun base(): LinearLayout { val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(24, 24, 24, 16); setBackgroundColor(dark); layoutDirection = LinearLayout.LAYOUT_DIRECTION_RTL }; val brand = TextView(this).apply { text = "BOKERR"; textSize = 26f; setTextColor(gold); gravity = Gravity.RIGHT; setPadding(0, 0, 0, 20) }; root.addView(brand); content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }; root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f)); val nav = LinearLayout(this).apply { gravity = Gravity.CENTER; setPadding(0, 16, 0, 0) }; listOf("الصالة" to ::showLobby, "المحفظة" to ::showWallet, "الدعم" to ::showSupport, "حسابي" to ::showProfile).forEach { (label, action) -> nav.addView(Button(this).apply { text = label; setOnClickListener { action() } }, LinearLayout.LayoutParams(0, -2, 1f)) }; root.addView(nav); setContentView(root); return root }
-    private fun showLobby() { base(); content.removeAllViews(); addText("اختر طاولتك وابدأ اللعب", 18f, gold); addTable("طاولة بوكر تكساس", "Berlin · تكساس هولدم", "Blinds 5/10 · دخول 350 - 5000 ل.س", "6/9", "berlin-9max"); addTable("طاولة بوكر أوماها", "London · أوماها", "Blinds 5/10 · دخول 500 - 5000 ل.س", "3/5", "london-5max") }
-    private fun addTable(name: String, subtitle: String, details: String, seats: String, id: String) { addText("$name\n$subtitle\n$details\nالمقاعد: $seats", 16f, Color.WHITE); val button = Button(this).apply { text = "دخول الطاولة"; setOnClickListener { connect(id) } }; content.addView(button) }
-    private fun showWallet() { base(); content.removeAllViews(); addText("المحفظة اختيارية", 20f, Color.WHITE); addText("يمكنك تخطي إعداد الدفع والبدء باللعب.", 14f, Color.LTGRAY); content.addView(Button(this).apply { text = "إيداع" }); content.addView(Button(this).apply { text = "سحب" }); content.addView(Button(this).apply { text = "تخطي الآن"; setOnClickListener { showLobby() } }) }
-    private fun showSupport() { base(); content.removeAllViews(); addText("الدعم الفني", 20f, Color.WHITE); content.addView(Button(this).apply { text = "فتح واتساب" }) }
-    private fun showProfile() { base(); content.removeAllViews(); addText("حسابي\nلاعب_دمشق", 20f, Color.WHITE) }
-    private fun addText(value: String, size: Float, color: Int) { content.addView(TextView(this).apply { text = value; textSize = size; setTextColor(color); setPadding(20, 20, 20, 20); setBackgroundColor(card) }) }
-    private fun connect(tableId: String) {
-        val base = BuildConfig.API_BASE_URL.trimEnd('/')
-        if (!base.startsWith("https://", ignoreCase = true)) {
-            addText("الاتصال غير مهيأ. يرجى ضبط عنوان API آمن (HTTPS) وقت البناء.", 14f, Color.YELLOW)
-            return
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+
+        webView = WebView(this).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
+            settings.javaScriptCanOpenWindowsAutomatically = false
+            settings.setSupportMultipleWindows(false)
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            addJavascriptInterface(NativeBridge(), "BokerrNative")
+            webViewClient = object : WebViewClient() {
+                override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?) =
+                    request?.url?.let { assetLoader.shouldInterceptRequest(it) }
+
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                    return request?.url?.host != "appassets.androidplatform.net"
+                }
+            }
         }
-        val socketUrl = "wss://${base.removePrefix("https://")}/ws/$tableId"
-        val request = Request.Builder().url(socketUrl).build()
-        client.newWebSocket(request, object : WebSocketListener() {
-            override fun onMessage(socket: WebSocket, text: String) {
-                val token = Regex("\\\"turnToken\\\":\\\"([^\\\"]+)\\\"").find(text)?.groupValues?.get(1) ?: return
-                val escapedToken = org.json.JSONObject.quote(token)
-                socket.send("{\"type\":\"join\",\"actionId\":\"${UUID.randomUUID()}\",\"turnToken\":$escapedToken}")
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
+        setContentView(webView)
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
+    }
+
+    override fun onDestroy() {
+        if (::webView.isInitialized) {
+            webView.stopLoading()
+            webView.removeJavascriptInterface("BokerrNative")
+            webView.destroy()
+        }
+        super.onDestroy()
+    }
+
+    private inner class NativeBridge {
+        private val preferences = getSharedPreferences("bokerr_private_session", Context.MODE_PRIVATE)
+
+        @JavascriptInterface
+        fun apiBaseUrl(): String = BuildConfig.API_BASE_URL
+
+        @JavascriptInterface
+        fun getSessionToken(): String = preferences.getString("session_token", "") ?: ""
+
+        @JavascriptInterface
+        fun saveSessionToken(token: String) {
+            if (token.matches(Regex("^[a-fA-F0-9]{64}$"))) {
+                preferences.edit().putString("session_token", token.lowercase()).apply()
             }
-            override fun onFailure(socket: WebSocket, t: Throwable, response: okhttp3.Response?) {
-                runOnUiThread { addText("تعذر الاتصال بالخادم. تحقق من الشبكة والإعدادات.", 14f, Color.YELLOW) }
+        }
+
+        @JavascriptInterface
+        fun clearSessionToken() {
+            preferences.edit().remove("session_token").remove("last_table_id").apply()
+        }
+
+        @JavascriptInterface
+        fun getDisplayName(): String = preferences.getString("display_name", "") ?: ""
+
+        @JavascriptInterface
+        fun saveDisplayName(name: String) {
+            val clean = name.trim().replace(Regex("\\s+"), " ").take(24)
+            preferences.edit().putString("display_name", clean).apply()
+        }
+
+        @JavascriptInterface
+        fun saveLastTableId(tableId: String) {
+            if (tableId == "berlin-9max" || tableId == "london-5max") {
+                preferences.edit().putString("last_table_id", tableId).apply()
             }
-        })
+        }
     }
 }

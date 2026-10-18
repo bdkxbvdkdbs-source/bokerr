@@ -1,61 +1,41 @@
-# النشر والبناء
+# تطبيق Android والنشر
 
-## Cloudflare Worker
+## الباك إند على Cloudflare
 
-يوجد مساران منفصلان: تطبيق الويب في جذر المستودع، وBackend Worker داخل `backend/worker`. لا تستخدم `npx wrangler deploy` من جذر المستودع؛ هذا يجعل Cloudflare يكتشف Vite ويحاول تهيئته تلقائيًا. في Cloudflare Workers Builds اجعل **Root directory** هو `backend/worker`، واترك Build command فارغًا أو استخدم `npm install`، واجعل Deploy command هو `npm run deploy`. أما Cloudflare Pages للواجهة فليستخدم `npm run build` ومجلد `dist` فقط، دون `wrangler deploy`.
+الباك إند في المستودع المنفصل [boker](https://github.com/bdkxbvdkdbs-source/boker)، ويُنشر كـCloudflare Worker باسم `bokerr-api`. عنوان الإنتاج الافتراضي هو `https://bokerr-api.bdkxbvdkdbs.workers.dev`.
 
-سجّل الدخول محليًا أولًا:
+تُحفظ جلسة الضيف في KV عبر binding باسم `SESSION_KV` لمدة 30 يوماً. ينشئ الخادم رمز جلسة عشوائياً، ويحفظ في KV بصمة SHA-256 للرمز وبيانات الجلسة فقط. يحتفظ Android بالرمز في `SharedPreferences` خاص بالتطبيق. حالة الجولة الحية ومقاعد الطاولة تبقى في Durable Object لكل طاولة وتُحفظ باستخدام تخزين Durable Object؛ KV ليس مصدراً لحالة اللعب الحية.
 
-```bash
-cd backend/worker
-npx wrangler login
-npx wrangler whoami
-npx wrangler d1 create bokerr
-# ضع database_id في wrangler.toml
-npx wrangler d1 execute bokerr --remote --file schema.sql
-npx wrangler secret put ADMIN_TOKEN
-npx wrangler secret put SMS_SIGNING_SECRET
-npx wrangler deploy
-```
+المسارات الحالية: `GET /health`، و`GET /api/tables`، و`POST/GET/PUT/DELETE /api/session`، واتصال WebSocket على `/ws/berlin-9max` أو `/ws/london-5max`. يتطلب WebSocket جلسة صالحة عبر بروتوكول `bokerr-v1` ورمز الجلسة، وليس عبر عنوان URL. جلسات الضيف لا تعادل تسجيل دخول بحساب موثّق.
 
-النشر التلقائي من GitHub يحتاج Secrets باسم `CLOUDFLARE_API_TOKEN` و`CLOUDFLARE_ACCOUNT_ID`. لا تضع هذه القيم في الملفات أو الكود.
+أزيلت واجهة المحفظة وتدفقات SMS/الدفع من تطبيق Android ومساراتها العامة من Worker. تُركت جداول D1 القديمة دون حذف لتفادي فقد البيانات الموجودة؛ لا تستخدمها الواجهة الحالية.
 
-## اختبار WebSocket
+## تطبيق Android
 
-بعد أن يعطي `wrangler deploy` عنوان Worker، اختبر الصحة أولًا:
+المشروع Kotlin في `mobile/android`. شاشة التطبيق أصول HTML/CSS/JavaScript محلية داخل APK، وتُعرض عبر `WebViewAssetLoader` على origin آمن `https://appassets.androidplatform.net`. لا يحتاج التطبيق إلا إذن `INTERNET`؛ لا يطلب صلاحيات SMS أو ملفات أو موقع. عنوان API يُحقن في `BuildConfig` وقت البناء، ولا يوجد مفتاح إدارة داخل التطبيق.
 
-```bash
-curl https://YOUR_WORKER.workers.dev/health
-```
+الحد الأدنى للبناء Android 5.0 / API 21. قابلية العرض الفعلية تعتمد أيضاً على نسخة Android System WebView المثبتة على الجهاز؛ لذلك لا يمكن ضمان التوافق مع كل نسخة WebView قديمة أو معدّلة.
 
-ثم استخدم عميل WebSocket. الاتصال يعطي رسالة `ready` وبداخلها `turnToken`. يجب استعمال الرمز الصادر من الخادم، وليس القيمة التجريبية الموجودة في اختبار المثال. يمكن استخدام `wscat`:
-
-```bash
-npx wscat -c wss://YOUR_WORKER.workers.dev/ws/berlin-9max
-```
-
-الطاولات المتاحة هي `berlin-9max` و`london-5max`. مسار الحالة العام هو `/api/tables`.
-
-## Android (Kotlin)
-
-المشروع الأصلي موجود في `mobile/android` ومصدر التطبيق بلغة Kotlin. يتطلب البناء Android SDK وGradle 8.10 أو أحدث، ويدعم التثبيت ابتداءً من Android 5.0 (API 21) بسبب متطلبات المكتبات؛ لا يمكن ضمان العمل على كل أجهزة Android أو الإصدارات الأقدم:
+للبناء محلياً:
 
 ```bash
 cd mobile/android
 gradle assembleDebug bundleRelease
 ```
 
-يشغّل GitHub Action `android.yml` بناء APK debug وAAB تجريبيين ويرفعهما كـ Artifacts. للإنتاج، يشغّل `.github/workflows/android-release.yml` عند دفع tag يبدأ بـ `v`؛ يبني APK وAAB موقّعين ويرفعهما إلى [صفحة GitHub Releases](https://github.com/bdkxbvdkdbs-source/bokerr/releases). لن يُنشر إصدار إنتاجي حتى تكتمل أسرار التوقيع المطلوبة. يقرأ Workflow ملف keystore من Secret باسم `PASTE_ANDROID_KEYSTORE_BASE64_HERE` (مشفّر بـ Base64)، إضافة إلى `ANDROID_KEYSTORE_PASSWORD` و`ANDROID_KEY_ALIAS` و`ANDROID_KEY_PASSWORD`. يُفك مخزن المفاتيح داخل مساحة runner المؤقتة فقط. لا ترفع keystore أو كلمات مروره إلى Git.
+يمكن تجاوز عنوان API الافتراضي بمتغير البيئة أو Gradle property باسم `BOKERR_API_BASE_URL`، ويجب أن يكون عنوان HTTPS. أُعد GitHub Actions لاستخدام Worker الإنتاجي افتراضياً.
 
-يستخدم Workflow الإنتاج افتراضيًا `https://bokerr-api.bdkxbvdkdbs.workers.dev`، ويمكن تجاوز العنوان بمتغير المستودع `BOKERR_API_BASE_URL` بصيغة HTTPS (دون `/` في النهاية). يدخل العنوان وقت البناء في `BuildConfig`، ولا يُضمّن أي رمز إدارة أو مفتاح سري في التطبيق. لا توضع الأسرار في `gradle.properties` أو ملفات `.env` أو شفرة Kotlin.
+## إصدار APK وAAB
 
-لإصدار النسخة التالية بعد ضبط أسرار التوقيع، أنشئ وادفع tag مثلًا:
+يشغّل `.github/workflows/android.yml` بناء APK debug وAAB تجريبياً عند تحديث `main`، ثم يرفع الناتج كـArtifact في Actions. يشغّل `.github/workflows/android-release.yml` بناء الإصدار عند دفع tag يبدأ بـ`v`، ثم يرفع APK وAAB إلى [صفحة Releases](https://github.com/bdkxbvdkdbs-source/bokerr/releases).
+
+يتطلب إصدار الإنتاج أسرار GitHub Actions التالية: `PASTE_ANDROID_KEYSTORE_BASE64_HERE` و`ANDROID_KEYSTORE_PASSWORD` و`ANDROID_KEY_ALIAS` و`ANDROID_KEY_PASSWORD`. لا ترفع ملف keystore أو كلمات المرور إلى Git. يستخدم Workflow عنوان API الافتراضي، أو متغير المستودع `BOKERR_API_BASE_URL` إذا ضُبط.
+
+بعد الإصدار `v1.0.3`، يمكن إنشاء الإصدار التالي مثلاً هكذا:
 
 ```bash
-git tag v1.0.2
-git push origin v1.0.2
+git tag v1.0.4
+git push origin v1.0.4
 ```
 
-سيظهر الإصدار والملفان APK/AAB في صفحة Releases بعد نجاح البناء؛ `ANDROID_VERSION_CODE` يزيد تلقائيًا بحسب رقم تشغيل Workflow.
-
-مستقبل SMS يرسل مرجعًا ومبلغًا مستخرجين من الرسالة كبيانات غير موثوقة فقط؛ SHA-256 على الهاتف ليس إثبات دفع. لا يجوز للخادم إضافة رصيد قبل التحقق من المعاملة عبر واجهة رسمية موثوقة لمزود الدفع، مع منع التكرار. صلاحية SMS حساسة وقد تخضع لقيود Google Play وسياساته، لذلك لا تنشر هذا التكامل قبل مراجعتها والحصول على الموافقات اللازمة.
+ينبغي تنزيل APK من صفحة Releases؛ ملف AAB مخصص غالباً للنشر عبر متاجر التطبيقات، بينما APK هو الأنسب للتثبيت اليدوي.
